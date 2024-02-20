@@ -20,14 +20,14 @@ volatile uint8_t	payloadBytes[1];
 /*
  *	Override Warp firmware's use of these pins and define new aliases.
  */
-enum
-{
-	kSSD1331PinMOSI		= GPIO_MAKE_PIN(HW_GPIOA, 8),
-	kSSD1331PinSCK		= GPIO_MAKE_PIN(HW_GPIOA, 9),
-	kSSD1331PinCSn		= GPIO_MAKE_PIN(HW_GPIOB, 13),
-	kSSD1331PinDC		= GPIO_MAKE_PIN(HW_GPIOA, 12),
-	kSSD1331PinRST		= GPIO_MAKE_PIN(HW_GPIOB, 0),
-};
+//enum
+//{
+//	kSSD1331PinMOSI		= GPIO_MAKE_PIN(HW_GPIOA, 8),
+//	kSSD1331PinSCK		= GPIO_MAKE_PIN(HW_GPIOA, 9),
+//	kSSD1331PinCSn		= GPIO_MAKE_PIN(HW_GPIOB, 13),
+//	kSSD1331PinDC		= GPIO_MAKE_PIN(HW_GPIOA, 12),
+//	kSSD1331PinRST		= GPIO_MAKE_PIN(HW_GPIOB, 0),  Redefined in gpio_pins.h 
+//};
 
 static int
 writeCommand(uint8_t commandByte)
@@ -77,7 +77,7 @@ devSSD1331init(void)
 	PORT_HAL_SetMuxMode(PORTA_BASE, 8u, kPortMuxAlt3);
 	PORT_HAL_SetMuxMode(PORTA_BASE, 9u, kPortMuxAlt3);
 
-	enableSPIpins();
+	warpEnableSPIpins();
 
 	/*
 	 *	Override Warp firmware's use of these pins.
@@ -162,7 +162,45 @@ devSSD1331init(void)
 	 */
 	//...
 
+	    //set max contrast (0xFF) on each colour channel for brightest green
+    writeCommand(kSSD1331CommandCONTRASTA);		// 0x81
+	writeCommand(0xFF);
+	writeCommand(kSSD1331CommandCONTRASTB);		// 0x82
+	writeCommand(0xFF);
+	writeCommand(kSSD1331CommandCONTRASTC);		// 0x83
+	writeCommand(0xFF);
 
+    // set highest precharge level possible and highest speed for max brightness
+	writeCommand(kSSD1331CommandPRECHARGEA);	// 0x8A
+	writeCommand(0xFF);
+	writeCommand(kSSD1331CommandPRECHARGEB);	// 0x8B
+	writeCommand(0xFF);
+	writeCommand(kSSD1331CommandPRECHARGEA);	// 0x8C
+	writeCommand(0xFF);
+	writeCommand(kSSD1331CommandPRECHARGELEVEL);	// 0xBB
+	writeCommand(0x3E);
+
+
+	 // set maximum pixel current for maximum brightness
+	writeCommand(kSSD1331CommandMASTERCURRENT);	// 0x87
+	writeCommand(0x0F);
+
+
+    	writeCommand(kSSD1331CommandDRAWRECT);
+    	// start column -> row
+    	writeCommand(0x00);
+    	writeCommand(0x00);
+    	// end column -> row
+    	writeCommand(0x5F);
+    	writeCommand(0x3F);
+    	// line colour BGR in rgb565
+    	writeCommand(0x00);
+    	writeCommand(0x3F);
+    	writeCommand(0x00);
+    	// fill colour BGR in rgb565
+    	writeCommand(0x00);
+    	writeCommand(0x3F);
+    	writeCommand(0x00);
 
 	return 0;
 }

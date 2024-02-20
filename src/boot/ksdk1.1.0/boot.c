@@ -76,16 +76,17 @@
 /*
 * Include all sensors because they will be needed to decode flash.
 */
-#include "devADXL362.h"
-#include "devAMG8834.h"
-#include "devMMA8451Q.h"
-#include "devMAG3110.h"
-#include "devL3GD20H.h"
-#include "devBME680.h"
-#include "devBMX055.h"
-#include "devCCS811.h"
-#include "devHDC1000.h"
-#include "devRV8803C7.h"
+// #include "devADXL362.h"
+// #include "devAMG8834.h"
+#include "devMMA8451Q.h"	//Added by C.Cambridge
+// #include "devMAG3110.h"
+// #include "devL3GD20H.h"
+// #include "devBME680.h"
+// #include "devBMX055.h"
+// #include "devCCS811.h"
+// #include "devHDC1000.h"
+// #include "devRV8803C7.h"
+#include "devSSD1331.h"
 
 
 #if (WARP_BUILD_ENABLE_DEVADXL362)
@@ -1674,7 +1675,7 @@ main(void)
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVMMA8451Q)
-		initMMA8451Q(	0x1C	/* i2cAddress */,	kWarpDefaultSupplyVoltageMillivoltsMMA8451Q	);
+		initMMA8451Q(	0x1D	/* i2cAddress */,	kWarpDefaultSupplyVoltageMillivoltsMMA8451Q	);
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVLPS25H)
@@ -1916,6 +1917,11 @@ main(void)
 
 	bool _originalWarpExtraQuietMode = gWarpExtraQuietMode;
 	gWarpExtraQuietMode = false;
+	
+	// Display initialisation
+
+    	devSSD1331init();	// Added by C. Cambridge for device initialisation, defined in devSSD1331linit()
+    			
 	warpPrint("Press any key to show menu...\n");
 	gWarpExtraQuietMode = _originalWarpExtraQuietMode;
 
