@@ -3828,7 +3828,7 @@ repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t
 /*
  *	INA219: VDD 3V--5V
  */
-#if (WARP_BUILD_ENABLE_DEVHDC1000)
+#if (WARP_BUILD_ENABLE_DEVINA219)
 				loopForSensor(	"\r\nINA219:\n\r",		/*	tagString			*/
 						&readSensorRegisterINA219,	/*	readSensorRegisterFunction	*/
 						&deviceINA219State,		/*	i2cDeviceState			*/
