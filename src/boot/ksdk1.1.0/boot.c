@@ -79,6 +79,7 @@
 // #include "devADXL362.h"
 // #include "devAMG8834.h"
 #include "devMMA8451Q.h"	//Added by C.Cambridge
+#include "devINA219.h"		//Added by C.Cambridge
 // #include "devMAG3110.h"
 // #include "devL3GD20H.h"
 // #include "devBME680.h"
@@ -88,103 +89,12 @@
 // #include "devRV8803C7.h"
 #include "devSSD1331.h"
 
-
-#if (WARP_BUILD_ENABLE_DEVADXL362)
-	volatile WarpSPIDeviceState			deviceADXL362State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVIS25xP)
-	#include "devIS25xP.h"
-	volatile WarpSPIDeviceState			deviceIS25xPState;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVISL23415)
-	#include "devISL23415.h"
-	volatile WarpSPIDeviceState			deviceISL23415State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVAT45DB)
-	#include "devAT45DB.h"
-	volatile WarpSPIDeviceState			deviceAT45DBState;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVICE40)
-	#include "devICE40.h"
-	volatile WarpSPIDeviceState			deviceICE40State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVBMX055)
-	volatile WarpI2CDeviceState			deviceBMX055accelState;
-	volatile WarpI2CDeviceState			deviceBMX055gyroState;
-	volatile WarpI2CDeviceState			deviceBMX055magState;
-#endif
-
 #if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 	volatile WarpI2CDeviceState			deviceMMA8451QState;
 #endif
 
-#if (WARP_BUILD_ENABLE_DEVLPS25H)
-	#include "devLPS25H.h"
-	volatile WarpI2CDeviceState			deviceLPS25HState;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVHDC1000)
-	volatile WarpI2CDeviceState			deviceHDC1000State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVMAG3110)
-	volatile WarpI2CDeviceState			deviceMAG3110State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVSI7021)
-	#include "devSI7021.h"
-	volatile WarpI2CDeviceState			deviceSI7021State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVL3GD20H)
-	volatile WarpI2CDeviceState			deviceL3GD20HState;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVBME680)
-	volatile WarpI2CDeviceState			deviceBME680State;
-	volatile uint8_t				deviceBME680CalibrationValues[kWarpSizesBME680CalibrationValuesCount];
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVTCS34725)
-	#include "devTCS34725.h"
-	volatile WarpI2CDeviceState			deviceTCS34725State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVSI4705)
-	#include "devSI4705.h"
-	volatile WarpI2CDeviceState			deviceSI4705State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVCCS811)
-	volatile WarpI2CDeviceState			deviceCCS811State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVAMG8834)
-	volatile WarpI2CDeviceState			deviceAMG8834State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVAS7262)
-	#include "devAS7262.h"
-	volatile WarpI2CDeviceState			deviceAS7262State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVAS7263)
-	#include "devAS7263.h"
-	volatile WarpI2CDeviceState			deviceAS7263State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVRV8803C7)
-	volatile WarpI2CDeviceState			deviceRV8803C7State;
-#endif
-
-#if (WARP_BUILD_ENABLE_DEVBGX)
-	#include "devBGX.h"
-	volatile WarpUARTDeviceState			deviceBGXState;
+#if (WARP_BUILD_ENABLE_DEVINA219)
+	volatile WarpI2CDeviceState			deviceINA219State;
 #endif
 
 typedef enum
@@ -203,6 +113,8 @@ typedef enum
 	kWarpFlashHDC1000BitField		= 0b100000000000,
 	kWarpFlashRV8803C7BitField		= 0b100000000000000,
 	kWarpFlashNumConfigErrors		= 0b1000000000000000,
+	kWarpFlashINA219BitField              = 0b10000000000000000,
+	
 } WarpFlashSensorBitFieldEncoding;
 
 volatile i2c_master_state_t		  i2cMasterState;
@@ -1726,6 +1638,10 @@ main(void)
 		initAS7263(	0x49	/* i2cAddress */,	kWarpDefaultSupplyVoltageMillivoltsAS7263	);
 #endif
 
+#if (WARP_BUILD_ENABLE_DEVINA219)
+		initINA219(	0X40	/* i2cAddress */,	kWarpDefaultSupplyVoltageMillivoltsINA219	);
+#endif
+
 #if (WARP_BUILD_ENABLE_DEVRV8803C7)
 		initRV8803C7(	0x32	/* i2cAddress */,					kWarpDefaultSupplyVoltageMillivoltsRV8803C7	);
 		status = setRTCCountdownRV8803C7(0 /* countdown */, kWarpRV8803ExtTD_1HZ /* frequency */, false /* interupt_enable */);
@@ -1920,8 +1836,11 @@ main(void)
 	
 	// Display initialisation
 
+#if (WARP_BUILD_ENABLE_FRDMKL03)
     	devSSD1331init();	// Added by C. Cambridge for device initialisation, defined in devSSD1331linit()
-    			
+	printSensorDataINA219(1); // Initialise the INA219
+#endif	
+
 	warpPrint("Press any key to show menu...\n");
 	gWarpExtraQuietMode = _originalWarpExtraQuietMode;
 
@@ -2184,6 +2103,12 @@ main(void)
 					warpPrint("\r\t- 'k' AS7263			(0x00--0x2B): 2.7V -- 3.6V (compiled out) \n");
 #endif
 
+#if (WARP_BUILD_ENABLE_DEVINA219)
+                                        warpPrint("\r\t- 'l' INA219                   (0x00--0x05): 2.7V -- 3.6V\n");
+#else
+                                        warpPrint("\r\t- 'l' INA219                   (0x00--0x05): 2.7V -- 3.6V (compiled out) \n");
+#endif
+
 				warpPrint("\r\tEnter selection> ");
 				key = warpWaitKey();
 
@@ -2332,6 +2257,14 @@ main(void)
 						menuI2cDevice = &deviceAS7263State;
 						break;
 					}
+#endif
+#if (WARP_BUILD_ENABLE_DEVINA219)
+                                        case 'l':
+                                        {
+                                                menuTargetSensor = kWarpSensorINA219;
+                                                menuI2cDevice = &deviceINA219State;
+                                                break;
+                                        }
 #endif
 					default:
 					{
@@ -3209,6 +3142,14 @@ writeAllSensorsToFlash(int menuDelayBetweenEachRun, int loopForever)
 	sensorBitField = sensorBitField | kWarpFlashMMA8451QBitField;
 #endif
 
+#if (WARP_BUILD_ENABLE_DEVINA219)
+        numberOfConfigErrors += configureSensorINA219(
+                0x00, /* Payload: Disable FIFO */
+                0x01  /* Normal read 8bit, 800Hz, normal, active mode */
+        );
+        sensorBitField = sensorBitField | kWarpFlashINA219BitField;
+#endif
+
 #if (WARP_BUILD_ENABLE_DEVMAG3110)
 	numberOfConfigErrors += configureSensorMAG3110(
 		0x00, /*	Payload: DR 000, OS 00, 80Hz, ADC 1280, Full 16bit, standby mode
@@ -3343,6 +3284,10 @@ writeAllSensorsToFlash(int menuDelayBetweenEachRun, int loopForever)
 
 #if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 		bytesWrittenIndex += appendSensorDataMMA8451Q(flashWriteBuf + bytesWrittenIndex);
+#endif
+
+#if (WARP_BUILD_ENABLE_DEVINA219)
+                bytesWrittenIndex += appendSensorDataINA219(flashWriteBuf + bytesWrittenIndex);
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVMAG3110)
@@ -3547,6 +3492,10 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag,
 		warpPrint(" ADXL362 x, ADXL362 y, ADXL362 z,");
 #endif
 
+#if (WARP_BUILD_ENABLE_DEVINA219)
+		warpPrint(" INA219 Shunt, INA219 Bus, INA219 Power, INA219 Current");
+#endif
+
 #if (WARP_BUILD_ENABLE_DEVAMG8834)
 		for (uint8_t i = 0; i < 64; i++)
 		{
@@ -3609,6 +3558,10 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag,
 
 #if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 		printSensorDataMMA8451Q(hexModeFlag);
+#endif
+
+#if (WARP_BUILD_ENABLE_DEVINA219)
+		printSensorDataINA219(hexModeFlag);
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVMAG3110)
@@ -3865,6 +3818,35 @@ repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t
 			);
 #else
 			warpPrint("\r\n\tMMA8451Q Read Aborted. Device Disabled :(");
+#endif
+
+			break;
+		}
+
+	case kWarpSensorINA219:
+		{
+/*
+ *	INA219: VDD 3V--5V
+ */
+#if (WARP_BUILD_ENABLE_DEVHDC1000)
+				loopForSensor(	"\r\nINA219:\n\r",		/*	tagString			*/
+						&readSensorRegisterINA219,	/*	readSensorRegisterFunction	*/
+						&deviceINA219State,		/*	i2cDeviceState			*/
+						NULL,				/*	spiDeviceState			*/
+						baseAddress,			/*	baseAddress			*/
+						0x00,				/*	minAddress			*/
+						0x05,				/*	maxAddress			*/
+						repetitionsPerAddress,		/*	repetitionsPerAddress		*/
+						chunkReadsPerAddress,		/*	chunkReadsPerAddress		*/
+						spinDelay,			/*	spinDelay			*/
+						autoIncrement,			/*	autoIncrement			*/
+						sssupplyMillivolts,		/*	sssupplyMillivolts		*/
+						referenceByte,			/*	referenceByte			*/
+						adaptiveSssupplyMaxMillivolts,	/*	adaptiveSssupplyMaxMillivolts	*/
+						chatty				/*	chatty				*/
+			);
+#else
+			warpPrint("\r\n\tINA219 Read Aborted. Device Disabled :( ");
 #endif
 
 			break;

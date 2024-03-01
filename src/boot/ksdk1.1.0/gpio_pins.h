@@ -46,9 +46,9 @@ enum _gpio_pins
 		kWarpPinBGX_nRST		= GPIO_MAKE_PIN(HW_GPIOA, 5),
 	#endif
 
-	 kWarpPinSPI_MISO_UART_RTS		= GPIO_MAKE_PIN(HW_GPIOA, 6),
-	 kWarpPinSPI_MOSI_UART_CTS		= GPIO_MAKE_PIN(HW_GPIOA, 7),
-	 kWarpPinADXL362_SPI_nCS			= GPIO_MAKE_PIN(HW_GPIOA, 8),
+	kWarpPinSPI_MISO_UART_RTS		= GPIO_MAKE_PIN(HW_GPIOA, 6),
+	kWarpPinSPI_MOSI_UART_CTS		= GPIO_MAKE_PIN(HW_GPIOA, 7),
+	kWarpPinADXL362_SPI_nCS			= GPIO_MAKE_PIN(HW_GPIOA, 8),
 
 	#if (WARP_BUILD_ENABLE_GLAUX_VARIANT)
 		kWarpPinSPI_SCK			= GPIO_MAKE_PIN(HW_GPIOA, 9),
@@ -72,8 +72,8 @@ enum _gpio_pins
 		kSSD1331PinRST				= GPIO_MAKE_PIN(HW_GPIOB, 0),
 		kWarpPinUnusedPTB1			= GPIO_MAKE_PIN(HW_GPIOB, 1),
 		kWarpPinUnusedPTB2			= GPIO_MAKE_PIN(HW_GPIOB, 2),
-		kWarpPinUnusedPTB3			= GPIO_MAKE_PIN(HW_GPIOB, 3),
-		kWarpPinUnusedPTB4			= GPIO_MAKE_PIN(HW_GPIOB, 4),
+		kWarpPinI2C0_SCL_UART_TX                = GPIO_MAKE_PIN(HW_GPIOB, 3),
+                kWarpPinI2C0_SDA_UART_RX                = GPIO_MAKE_PIN(HW_GPIOB, 4),
 		kWarpPinUnusedPTB5			= GPIO_MAKE_PIN(HW_GPIOB, 5),
 		kWarpPinUnusedPTB6			= GPIO_MAKE_PIN(HW_GPIOB, 6),
 		kWarpPinUnusedPTB7			= GPIO_MAKE_PIN(HW_GPIOB, 7),

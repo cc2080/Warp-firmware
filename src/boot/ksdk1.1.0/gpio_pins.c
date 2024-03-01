@@ -201,7 +201,8 @@ gpio_output_pin_user_config_t	outputPins[] = {
 			.config.outputLogic = 1,
 			.config.slewRate = kPortSlowSlewRate,
 			.config.driveStrength = kPortLowDriveStrength,
-		},
+	},
+
 	#endif
 
 	{
