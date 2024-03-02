@@ -83,7 +83,7 @@ enum _gpio_pins
 		kWarpPinUnusedPTA3			= GPIO_MAKE_PIN(HW_GPIOA, 3),
 		kWarpPinUnusedPTA4			= GPIO_MAKE_PIN(HW_GPIOA, 4),
 		kWarpPinUnusedPTA5			= GPIO_MAKE_PIN(HW_GPIOA, 5),
-		kWarpPinUnusedPTA6			= GPIO_MAKE_PIN(HW_GPIOA, 6),
+		kSSD1331PinMISO 			= GPIO_MAKE_PIN(HW_GPIOA, 6),
 		kWarpPinUnusedPTA7			= GPIO_MAKE_PIN(HW_GPIOA, 7),
 		kSSD1331PinMOSI				= GPIO_MAKE_PIN(HW_GPIOA, 8),
 		kSSD1331PinSCK				= GPIO_MAKE_PIN(HW_GPIOA, 9),

@@ -172,6 +172,12 @@ gpio_output_pin_user_config_t	outputPins[] = {
 			.config.slewRate = kPortSlowSlewRate,
 			.config.driveStrength = kPortLowDriveStrength,
 		},
+	{
+                        .pinName = kSSD1331PinMISO,
+                        .config.outputLogic = 1,
+                        .config.slewRate = kPortSlowSlewRate,
+                        .config.driveStrength = kPortLowDriveStrength,
+                 },
         {
 			.pinName = kSSD1331PinSCK,
 			.config.outputLogic = 1,
