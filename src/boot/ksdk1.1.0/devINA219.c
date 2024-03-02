@@ -75,11 +75,8 @@ initINA219(const uint8_t i2cAddress, uint16_t operatingVoltageMillivolts)
 {
         deviceINA219State.i2cAddress                   = i2cAddress;
         deviceINA219State.operatingVoltageMillivolts   = operatingVoltageMillivolts;
-	
-	//Set Chip to large range config values to start
-	setCalibration_cc2080();
 
-        return;
+	return;
 }
 
 WarpStatus
@@ -91,9 +88,8 @@ writeSensorRegisterINA219(uint8_t deviceRegister, uint16_t payload)
         switch (deviceRegister)
         {
 		// Not interested in config or calibration registers
-		case INA219_REG_CONFIG:
-	       	case INA219_REG_CALIBRATION:
-                {
+		case 0x00: case 0x05:
+		{
                         /* OK */
                         break;
                 }
@@ -115,7 +111,7 @@ writeSensorRegisterINA219(uint8_t deviceRegister, uint16_t payload)
         payloadByte[0] = (payload >> 8) & 0xFF; /* MSB first */
         payloadByte[1] = payload & 0xFF;        /* LSB */
 	warpEnableI2Cpins(); 
-
+	OSA_TimeDelay(1);
         returnValue    = I2C_DRV_MasterSendDataBlocking(
                 0 /* I2C instance */,
                 &slave,
@@ -131,58 +127,91 @@ writeSensorRegisterINA219(uint8_t deviceRegister, uint16_t payload)
 
         return kWarpStatusOK;
 }
-
 WarpStatus
 readSensorRegisterINA219(uint8_t deviceRegister, int numberOfBytes)
 {
-        uint8_t cmdBuf[1] = {0xFF};
-        i2c_status_t returnValue;
+	uint8_t cmdBuf[1] = {0xFF};
+	i2c_status_t status1, status2;
 
-        i2c_device_t slave =
-                {
-                        .address       = deviceINA219State.i2cAddress,
-                        .baudRate_kbps = gWarpI2cBaudRateKbps};
-
-        USED(numberOfBytes);
-
-	switch (deviceRegister)
-	{
-		case INA219_REG_CONFIG:
-		case INA219_REG_SHUNTVOLTAGE:	
-		case INA219_REG_BUSVOLTAGE:
-		case INA219_REG_POWER:
-		case INA219_REG_CURRENT:
-		case INA219_REG_CALIBRATION:	
+	i2c_device_t slave =
 		{
-			/* OK */
-			break;
-		}
+			.address       = deviceINA219State.i2cAddress,
+			.baudRate_kbps = gWarpI2cBaudRateKbps};
 
-		default:
-		{
-			return kWarpStatusBadDeviceCommand;
-		}
-	}	
-	
+	USED(numberOfBytes);
+
 	warpScaleSupplyVoltage(deviceINA219State.operatingVoltageMillivolts);
-    	cmdBuf[0] = deviceRegister;
 	warpEnableI2Cpins();
-
-	returnValue = I2C_DRV_MasterReceiveDataBlocking(
-        	0 /* I2C peripheral instance */,
-        	&slave,
-        	cmdBuf,
-        	1,
-        	(uint8_t *)deviceINA219State.i2cBuffer,
-        	numberOfBytes,
-        	gWarpI2cTimeoutMilliseconds);
-
-	if (returnValue != kStatus_I2C_Success)
+	if (1)
 	{
-            	return kWarpStatusDeviceCommunicationFailed;
+		/*
+			Steps:
+			(1)	Write transaction beginning with start condition, slave address,
+				and pointer address and 2 bytes of config values to be written  
+				(total payload of 3 bytes).
+			(2)	Write transaction beginning with start condition, slave address,
+				and pointer address. Total payload is just 1 byte. (Trigger measurement)
+			(3)	Wait 10ms for conversion to complete.
+			(4)	Read transaction beginning with start condition, followed by
+				slave address, and read 2 byte payload
+		*/
+
+		/*
+		 *	Step 1: Trigger measurement
+		 */
+		cmdBuf[0] = deviceRegister;
+
+		status1 = I2C_DRV_MasterSendDataBlocking(
+			0,
+			&slave,
+			cmdBuf,
+			1,
+			NULL,
+			0,
+			gWarpI2cTimeoutMilliseconds);
+
+		/*
+		 *	Step 2: Wait for max 1ms for conversion completion
+		 */
+		OSA_TimeDelay(1);
+
+		/*
+		 *	Step 3: Read register
+		 */
+		status2 = I2C_DRV_MasterReceiveDataBlocking(
+			0 /* I2C peripheral instance */,
+			&slave,
+			NULL,
+			0,
+			(uint8_t*)deviceINA219State.i2cBuffer,
+			numberOfBytes,
+			gWarpI2cTimeoutMilliseconds);
+
+		if ((status1 != kStatus_I2C_Success) || (status2 != kStatus_I2C_Success))
+		{
+			return kWarpStatusDeviceCommunicationFailed;
+		}
+	}
+	else
+	{
+		cmdBuf[0] = deviceRegister;
+
+		status1 = I2C_DRV_MasterReceiveDataBlocking(
+			0 /* I2C peripheral instance */,
+			&slave,
+			cmdBuf,
+			1,
+			(uint8_t*)deviceINA219State.i2cBuffer,
+			numberOfBytes,
+			gWarpI2cTimeoutMilliseconds);
+
+		if (status1 != kStatus_I2C_Success)
+		{
+			return kWarpStatusDeviceCommunicationFailed;
+		}
 	}
 
-        return kWarpStatusOK;
+	return kWarpStatusOK;
 }
 
 void
@@ -216,10 +245,6 @@ printSensorDataINA219(bool hexModeFlag)
                 {
                         warpPrint(" 0x%02x 0x%02x,", readSensorRegisterValueMSB, readSensorRegisterValueLSB);
                 }
-                else
-                {
-                        warpPrint(" %d,", readSensorRegisterValueCombined);
-                }
         }
 
         i2cReadStatus = readSensorRegisterINA219(INA219_REG_BUSVOLTAGE, 2 /* numberOfBytes */);
@@ -240,11 +265,7 @@ printSensorDataINA219(bool hexModeFlag)
                 if (hexModeFlag)
                 {
                         warpPrint(" 0x%02x 0x%02x,", readSensorRegisterValueMSB, readSensorRegisterValueLSB);
-                }
-                else
-                {
-                        warpPrint(" %d,", readSensorRegisterValueCombined);
-                }
+		}
         }
 	 
 	i2cReadStatus = readSensorRegisterINA219(INA219_REG_POWER, 2 /* numberOfBytes */);
@@ -265,10 +286,6 @@ printSensorDataINA219(bool hexModeFlag)
                 if (hexModeFlag)
                 {
                         warpPrint(" 0x%02x 0x%02x,", readSensorRegisterValueMSB, readSensorRegisterValueLSB);
-                }
-                else
-                {
-                        warpPrint(" %d,", readSensorRegisterValueCombined);
                 }
         }
 
@@ -291,10 +308,6 @@ printSensorDataINA219(bool hexModeFlag)
                 {
                         warpPrint(" 0x%02x 0x%02x,", readSensorRegisterValueMSB, readSensorRegisterValueLSB);
                 }
-                else
-		{
-                        warpPrint(" %d,", readSensorRegisterValueCombined);
-                }
         }
 }
 
@@ -302,6 +315,7 @@ uint8_t
 appendSensorDataINA219(uint8_t* buf)
 {
         uint8_t index = 0;
+
         uint16_t readSensorRegisterValueLSB;
         uint16_t readSensorRegisterValueMSB;
         int16_t readSensorRegisterValueCombined;
@@ -662,3 +676,4 @@ float getPower_uW_INA219() {
   	valueDec *= ina219_powerMultiplier_uW;
   	return valueDec;
 }
+

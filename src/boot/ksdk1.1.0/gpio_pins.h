@@ -72,18 +72,14 @@ enum _gpio_pins
 		kSSD1331PinRST				= GPIO_MAKE_PIN(HW_GPIOB, 0),
 		kWarpPinUnusedPTB1			= GPIO_MAKE_PIN(HW_GPIOB, 1),
 		kWarpPinUnusedPTB2			= GPIO_MAKE_PIN(HW_GPIOB, 2),
-		kWarpPinI2C0_SCL_UART_TX                = GPIO_MAKE_PIN(HW_GPIOB, 3),
-                kWarpPinI2C0_SDA_UART_RX                = GPIO_MAKE_PIN(HW_GPIOB, 4),
+		kWarpPinUnusedPTB3	                = GPIO_MAKE_PIN(HW_GPIOB, 3),
+                kWarpPinUnusedPTB4	                = GPIO_MAKE_PIN(HW_GPIOB, 4),
 		kWarpPinUnusedPTB5			= GPIO_MAKE_PIN(HW_GPIOB, 5),
 		kWarpPinUnusedPTB6			= GPIO_MAKE_PIN(HW_GPIOB, 6),
 		kWarpPinUnusedPTB7			= GPIO_MAKE_PIN(HW_GPIOB, 7),
 		kWarpPinUnusedPTB10			= GPIO_MAKE_PIN(HW_GPIOB, 10),
-		kWarpPinLED_GREEN			= GPIO_MAKE_PIN(HW_GPIOB, 11),
+		kWarpPinUnusedPTB11			= GPIO_MAKE_PIN(HW_GPIOB, 11),
 		kSSD1331PinCSn				= GPIO_MAKE_PIN(HW_GPIOB, 13),
-
-
-
-
 		kWarpPinUnusedPTA3			= GPIO_MAKE_PIN(HW_GPIOA, 3),
 		kWarpPinUnusedPTA4			= GPIO_MAKE_PIN(HW_GPIOA, 4),
 		kWarpPinUnusedPTA5			= GPIO_MAKE_PIN(HW_GPIOA, 5),

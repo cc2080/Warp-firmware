@@ -111,9 +111,9 @@ typedef enum
 	kWarpFlashBMX055BitField		= 0b1000000000,
 	kWarpFlashCCS811BitField		= 0b10000000000,
 	kWarpFlashHDC1000BitField		= 0b100000000000,
+	kWarpFlashINA219BitField                = 0b1000000000000,
 	kWarpFlashRV8803C7BitField		= 0b100000000000000,
 	kWarpFlashNumConfigErrors		= 0b1000000000000000,
-	kWarpFlashINA219BitField              = 0b10000000000000000,
 	
 } WarpFlashSensorBitFieldEncoding;
 
@@ -1838,7 +1838,6 @@ main(void)
 
 #if (WARP_BUILD_ENABLE_FRDMKL03)
     	devSSD1331init();	// Added by C. Cambridge for device initialisation, defined in devSSD1331linit()
-	printSensorDataINA219(1); // Initialise the INA219
 #endif	
 
 	warpPrint("Press any key to show menu...\n");
@@ -1944,6 +1943,7 @@ main(void)
 		}
 	}
 #endif
+
 
 	while (1)
 	{
@@ -2104,9 +2104,9 @@ main(void)
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVINA219)
-                                        warpPrint("\r\t- 'l' INA219                   (0x00--0x05): 2.7V -- 3.6V\n");
+                                        warpPrint("\r\t- 'l' INA219                   (0x00--0x05): 3.0V -- 5.5V\n");
 #else
-                                        warpPrint("\r\t- 'l' INA219                   (0x00--0x05): 2.7V -- 3.6V (compiled out) \n");
+                                        warpPrint("\r\t- 'l' INA219                   (0x00--0x05): 3.0V -- 5.5V (compiled out) \n");
 #endif
 
 				warpPrint("\r\tEnter selection> ");
@@ -2263,8 +2263,88 @@ main(void)
                                         {
                                                 menuTargetSensor = kWarpSensorINA219;
                                                 menuI2cDevice = &deviceINA219State;
-                                                break;
-                                        }
+						writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CONFIG, 0x019F);
+						writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0x2000);
+                                                
+						warpPrint("\rEnter register to read> ");
+						warpPrint("\r- '0': Configuration (0x00)\n");
+						warpPrint("\r- '1': Shunt voltage (0x01)\n");
+						warpPrint("\r- '2': Bus voltage   (0x02)\n");
+						warpPrint("\r- '3': Power	  (0x03)\n");
+						warpPrint("\r- '4': Current       (0x04)\n");
+						warpPrint("\r- '5': Calibration   (0x05)\n");
+
+						key = warpWaitKey();
+						switch(key)
+						{
+							case '0':
+								{	
+									readSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CONFIG, 2);
+									warpPrint("\r\t0x%02x --> 0x%02x%02x\n", 0x00, deviceINA219State.i2cBuffer[0], deviceINA219State.i2cBuffer[1]);
+									OSA_TimeDelay(1);
+
+									break;
+								}
+
+							case '1':
+                                                                {
+                                                                        for (int i = 0; i < 1000; i++)
+                                                                        {
+                                                                                readSensorRegisterINA219(kWarpSensorOutputRegisterINA219SHUNT, 2);
+                                                                                uint8_t MSB =  deviceINA219State.i2cBuffer[0];
+										uint8_t LSB =  deviceINA219State.i2cBuffer[1];
+										uint16_t shunt = ((uint16_t)MSB << 8) | LSB;
+									       	warpPrint("\r\t%u\n", shunt);
+                                                                                OSA_TimeDelay(1);
+                                                                        }
+                                                                	break;
+                                                                }
+							case '2':
+                                                                {
+                                                                        for (int i = 0; i < 1000; i++)
+                                                                        {
+                                                                                readSensorRegisterINA219(kWarpSensorOutputRegisterINA219BUS, 2);
+                                                                                uint8_t MSB =  deviceINA219State.i2cBuffer[0];                                                                                       uint8_t LSB =  deviceINA219State.i2cBuffer[1];                                                                                       uint16_t bus = ((uint16_t)MSB << 8) | LSB;
+										warpPrint("\r\t%u\n", bus);
+                                                                                OSA_TimeDelay(1);
+                                                                        }
+                                                                        break;
+                                                                }
+
+							case '3':
+                                                                {
+                                                                        for (int i = 0; i < 1000; i++)
+                                                                        {
+                                                                                readSensorRegisterINA219(kWarpSensorOutputRegisterINA219POWER, 2);
+                                                                                warpPrint("\r\t0x%02x --> 0x%02x%02x\n", 0x03, deviceINA219State.i2cBuffer[0], deviceINA219State.i2cBuffer[1]);
+                                                                                OSA_TimeDelay(1);
+                                                                        }
+                                                                        break;
+                                                                }
+
+							case '4':
+                                                                {
+                                                                        for (int i = 0; i < 1000; i++)
+                                                                        {
+                                                                                readSensorRegisterINA219(kWarpSensorOutputRegisterINA219CURRENT, 2);
+                                                                                uint8_t MSB =  deviceINA219State.i2cBuffer[0];                                                                                       uint8_t LSB =  deviceINA219State.i2cBuffer[1];                                                                                       uint16_t current = ((uint16_t)MSB << 8) | LSB;
+										uint32_t actual_current = current * 50;
+										warpPrint("\r\t%u\n", actual_current);
+                                                                                OSA_TimeDelay(1);
+                                                                        }
+                                                                        break;
+                                                                }
+
+							case '5':                                                                                                                                    
+								{
+								    readSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 2); 
+								    warpPrint("\r\t0x%02x --> 0x%02x%02x\n", 0x05, deviceINA219State.i2cBuffer[0], deviceINA219State.i2cBuffer[1]); 
+								    OSA_TimeDelay(1); 
+								    break;
+								}
+						}
+						break;
+					}
 #endif
 					default:
 					{
@@ -3219,6 +3299,12 @@ writeAllSensorsToFlash(int menuDelayBetweenEachRun, int loopForever)
 	sensorBitField = sensorBitField | kWarpFlashHDC1000BitField;
 #endif
 
+#if (WARP_BUILD_ENABLE_DEVINA219)
+        numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CONFIG, /* Configuration register */, 0x019F);
+	numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0x2000);
+        sensorBitField = sensorBitField | kWarpFlashINA219BitField;
+#endif	
+
 	/*
 	 * Add RV8803C7 to sensorBitField
 	*/
@@ -3315,6 +3401,10 @@ writeAllSensorsToFlash(int menuDelayBetweenEachRun, int loopForever)
 
 #if (WARP_BUILD_ENABLE_DEVHDC1000)
 		bytesWrittenIndex += appendSensorDataHDC1000(flashWriteBuf + bytesWrittenIndex);
+#endif
+
+#if (WARP_BUILD_ENABLE_INA219)
+                bytesWrittenIndex += appendSensorDataINA219(flashWriteBuf + bytesWrittenIndex);
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVRV8803C7)
@@ -3493,7 +3583,8 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag,
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVINA219)
-		warpPrint(" INA219 Shunt, INA219 Bus, INA219 Power, INA219 Current");
+		numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CONFIG, 0x019F);
+		numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0x2000);
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVAMG8834)
@@ -3506,6 +3597,10 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag,
 
 #if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 		warpPrint(" MMA8451 x, MMA8451 y, MMA8451 z,");
+#endif
+
+#if (WARP_BUILD_ENABLE_DEVINA219)
+		warpPrint("Shunt, Bus, Power, Current");
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVMAG3110)
@@ -3667,7 +3762,7 @@ loopForSensor(	const char *  tagString,
 	{
 		for (int i = 0; i < readCount; i++) for (int j = 0; j < chunkReadsPerAddress; j++)
 			{
-			status = readSensorRegisterFunction(address+j, 1 /* numberOfBytes */);
+			status = readSensorRegisterFunction(address+j, 2 /* numberOfBytes */);
 				if (status == kWarpStatusOK)
 				{
 					nSuccesses++;
@@ -3704,7 +3799,8 @@ loopForSensor(	const char *  tagString,
 						{
 						warpPrint("\r\t0x%02x --> 0x%02x\n",
 							address+j,
-									  i2cDeviceState->i2cBuffer[0]);
+									  i2cDeviceState->i2cBuffer[0], 
+									  i2cDeviceState->i2cBuffer[1]);
 						}
 					}
 				}
@@ -3776,7 +3872,7 @@ repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t
 						NULL,				/*	i2cDeviceState			*/
 						&deviceADXL362State,		/*	spiDeviceState			*/
 						baseAddress,			/*	baseAddress			*/
-						0x00,				/*	minAddress			*/
+						0x00,
 						0x2E,				/*	maxAddress			*/
 						repetitionsPerAddress,		/*	repetitionsPerAddress		*/
 						chunkReadsPerAddress,		/*	chunkReadsPerAddress		*/
@@ -4994,6 +5090,20 @@ flashDecodeSensorBitField(uint16_t sensorBitField, uint8_t sensorIndex, uint8_t*
 			return;
 		}
 	}
+
+	/*
+        * INA219
+        */
+        if (sensorBitField & kWarpFlashINA219BitField)
+        {
+                numberOfSensorsFound++;
+                if (numberOfSensorsFound - 1 == sensorIndex)
+                {
+                        *sizePerReading         = bytesPerReadingINA219;
+                        *numberOfReadings = numberOfReadingsPerMeasurementINA219;
+                        return;
+                }
+        }
 
 	/*
 	 * RV8803C7
