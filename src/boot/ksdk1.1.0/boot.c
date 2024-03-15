@@ -2369,7 +2369,7 @@ main(void)
                                                 menuTargetSensor = kWarpSensorINA219;
                                                 menuI2cDevice = &deviceINA219State;
 						writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CONFIG, 0x019F);
-						writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0x2000);
+						writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0xA000);
                                                 
 						warpPrint("\rEnter register to read> ");
 						warpPrint("\r- '0': Configuration (0x00)\n");
@@ -2399,7 +2399,8 @@ main(void)
                                                                                 uint8_t MSB =  deviceINA219State.i2cBuffer[0];
 										uint8_t LSB =  deviceINA219State.i2cBuffer[1];
 										uint16_t shunt = ((uint16_t)MSB << 8) | LSB;
-									       	warpPrint("\r\t%u\n", shunt);
+										uint32_t shuntV = 10 * shunt;	//LSB 10uV
+									       	warpPrint("\r\t%u\n", shuntV);
                                                                                 OSA_TimeDelay(1);
                                                                         }
                                                                 	break;
@@ -2409,8 +2410,11 @@ main(void)
                                                                         for (int i = 0; i < 1000; i++)
                                                                         {
                                                                                 readSensorRegisterINA219(kWarpSensorOutputRegisterINA219BUS, 2);
-                                                                                uint8_t MSB =  deviceINA219State.i2cBuffer[0];                                                                                       uint8_t LSB =  deviceINA219State.i2cBuffer[1];                                                                                       uint16_t bus = ((uint16_t)MSB << 8) | LSB;
-										warpPrint("\r\t%u\n", bus);
+                                                                                uint8_t MSB =  deviceINA219State.i2cBuffer[0];
+										uint8_t LSB =  deviceINA219State.i2cBuffer[1];
+						       				uint16_t bus = (((uint16_t)MSB << 8) | LSB) >> 3;
+										uint32_t busV = bus * 4; 	// LSB 4mV
+										warpPrint("\r\t%u\n", busV);
                                                                                 OSA_TimeDelay(1);
                                                                         }
                                                                         break;
@@ -2421,7 +2425,11 @@ main(void)
                                                                         for (int i = 0; i < 1000; i++)
                                                                         {
                                                                                 readSensorRegisterINA219(kWarpSensorOutputRegisterINA219POWER, 2);
-                                                                                warpPrint("\r\t0x%02x --> 0x%02x%02x\n", 0x03, deviceINA219State.i2cBuffer[0], deviceINA219State.i2cBuffer[1]);
+										uint8_t MSB =  deviceINA219State.i2cBuffer[0];
+                                                                                uint8_t LSB =  deviceINA219State.i2cBuffer[1];
+                                                                                uint16_t Power = ((uint16_t)MSB << 8) | LSB;
+                                                                                uint32_t actual_power = Power * 200; 	//LSB 200uW
+                                                                                warpPrint("\r\t%u\n", actual_power);
                                                                                 OSA_TimeDelay(1);
                                                                         }
                                                                         break;
@@ -2432,8 +2440,10 @@ main(void)
                                                                         for (int i = 0; i < 1000; i++)
                                                                         {
                                                                                 readSensorRegisterINA219(kWarpSensorOutputRegisterINA219CURRENT, 2);
-                                                                                uint8_t MSB =  deviceINA219State.i2cBuffer[0];                                                                                       uint8_t LSB =  deviceINA219State.i2cBuffer[1];                                                                                       uint16_t current = ((uint16_t)MSB << 8) | LSB;
-										uint32_t actual_current = current * 50;
+                                                                                uint8_t MSB =  deviceINA219State.i2cBuffer[0];
+										uint8_t LSB =  deviceINA219State.i2cBuffer[1];
+										uint16_t current = ((uint16_t)MSB << 8) | LSB;
+										uint32_t actual_current = current * 10; // LSB 10uA
 										warpPrint("\r\t%u\n", actual_current);
                                                                                 OSA_TimeDelay(1);
                                                                         }
@@ -3329,7 +3339,7 @@ writeAllSensorsToFlash(int menuDelayBetweenEachRun, int loopForever)
 
 #if (WARP_BUILD_ENABLE_DEVINA219)
         numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CONFIG, 0x019F);
-	numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0x2000);
+	numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0xA000);
         sensorBitField = sensorBitField | kWarpFlashINA219BitField;
 #endif
 
@@ -3677,7 +3687,7 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag,
 
 #if (WARP_BUILD_ENABLE_DEVINA219)
 		numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CONFIG, 0x019F);
-		numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0x2000);
+		numberOfConfigErrors += writeSensorRegisterINA219(kWarpSensorConfigurationRegisterINA219CALIB, 0xA000);
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVAMG8834)
