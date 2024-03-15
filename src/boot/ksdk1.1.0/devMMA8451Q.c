@@ -61,6 +61,7 @@
 void
 initMMA8451Q(const uint8_t i2cAddress, uint16_t operatingVoltageMillivolts)
 {
+	warpPrint("Initialising MMA8451Q accelerometer.\n")
 	deviceMMA8451QState.i2cAddress			= i2cAddress;
 	deviceMMA8451QState.operatingVoltageMillivolts	= operatingVoltageMillivolts;
 
