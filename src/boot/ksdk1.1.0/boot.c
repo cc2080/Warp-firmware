@@ -2229,7 +2229,51 @@ main(void)
 					case '5':
 					{
 						menuTargetSensor = kWarpSensorMMA8451Q;
-							menuI2cDevice = &deviceMMA8451QState;
+						menuI2cDevice = &deviceMMA8451QState;
+						
+						warpPrint("\rEnter register to read> ");
+						warpPrint("\r- '0': x acceleration (0x00)\n");
+						warpPrint("\r- '1': y acceleration (0x00)\n");
+						warpPrint("\r- '2': z acceleration (0x00)\n");
+
+						key = warpWaitKey();
+						switch(key)
+						{
+							case '0':
+								{	
+									 for (int i = 0; i < 1000; i++)
+                                                                        {
+                                                                                readSensorRegisterMMA8451Q(0x02, 1);
+                                                                                uint8_t MSB =  deviceMMA8451QState.i2cBuffer[0];
+                                                                                warpPrint("\r\t%u\n", MSB);
+                                                                                OSA_TimeDelay(1);
+                                                                        }
+									break;
+								}
+
+							case '1':
+                                                                {
+                                                                        for (int i = 0; i < 1000; i++)
+                                                                        {
+                                                                                readSensorRegisterMMA8451Q(0x03, 1);
+                                                                                uint8_t MSB =  deviceMMA8451QState.i2cBuffer[0];
+									       	warpPrint("\r\t%u\n", MSB);
+                                                                                OSA_TimeDelay(1);
+                                                                        }
+                                                                	break;
+                                                                }
+							case '2':
+                                                                {
+                                                                        for (int i = 0; i < 1000; i++)
+                                                                        {
+                                                                                readSensorRegisterMMA8451Q(0x05, 1);
+                                                                                uint8_t MSB =  deviceMMA8451QState.i2cBuffer[0];
+										warpPrint("\r\t%u\n", MSB);
+                                                                                OSA_TimeDelay(1);
+                                                                        }
+                                                                        break;
+                                                                }
+						}
 						break;
 					}
 #endif
