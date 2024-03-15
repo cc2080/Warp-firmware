@@ -67,9 +67,6 @@ uint32_t ina219_currentMultiplier_uA;
 int16_t ina219_powerMultiplier_uW;
 uint16_t ina219_calValue;
 
-//must also calubrate based off the Adafruit INA219 library
-void setCalibration_cc2080();
-
 void
 initINA219(const uint8_t i2cAddress, uint16_t operatingVoltageMillivolts)
 {
@@ -151,7 +148,7 @@ readSensorRegisterINA219(uint8_t deviceRegister, int numberOfBytes)
 				(total payload of 3 bytes).
 			(2)	Write transaction beginning with start condition, slave address,
 				and pointer address. Total payload is just 1 byte. (Trigger measurement)
-			(3)	Wait 10ms for conversion to complete.
+			(3)	Wait 1ms for conversion to complete.
 			(4)	Read transaction beginning with start condition, followed by
 				slave address, and read 2 byte payload
 		*/
