@@ -57,12 +57,6 @@
 #include "warp.h"
 
 
-extern volatile WarpI2CDeviceState	deviceMMA8451QState;
-extern volatile uint32_t		gWarpI2cBaudRateKbps;
-extern volatile uint32_t		gWarpI2cTimeoutMilliseconds;
-extern volatile uint32_t		gWarpSupplySettlingDelayMilliseconds;
-
-
 
 void
 initMMA8451Q(const uint8_t i2cAddress, uint16_t operatingVoltageMillivolts)
