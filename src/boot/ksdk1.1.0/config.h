@@ -36,8 +36,8 @@
 */
 
 #define WARP_BUILD_ENABLE_SEGGER_RTT_PRINTF			1
-#define WARP_BUILD_BOOT_TO_CSVSTREAM				1
-#define WARP_CSVSTREAM_TO_FLASH						1
+#define WARP_BUILD_BOOT_TO_CSVSTREAM				0
+#define WARP_CSVSTREAM_TO_FLASH						0
 #define WARP_CSVSTREAM_FLASH_PRINT_METADATA			0
 #define WARP_BUILD_EXTRA_QUIET_MODE					1
 #define WARP_BUILD_BOOT_TO_VLPR						1
@@ -161,7 +161,7 @@ typedef enum
 	 */
 	kWarpDefaultPrintBufferSizeBytes       = 64,
 	kWarpMemoryCommonSpiBufferBytes        = 64,
-	kWarpSizesI2cBufferBytes               = 4,
+	kWarpSizesI2cBufferBytes               = 6,		// Need to set to 6 bytes, look at the function in the initialsation of the MMA8451Q sensor.
 	kWarpSizesSpiBufferBytes               = 7,
 	kWarpSizesUartBufferBytes              = 8,
 	kWarpSizesBME680CalibrationValuesCount = 41,

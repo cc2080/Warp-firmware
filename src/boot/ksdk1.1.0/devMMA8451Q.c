@@ -57,16 +57,30 @@
 #include "warp.h"
 
 #include "devMMA8451Q.h"
-
+#include "Classification.h"
 
 
 void
 initMMA8451Q(const uint8_t i2cAddress, uint16_t operatingVoltageMillivolts)
 {
-	warpPrint("Initialising MMA8451Q accelerometer.\n");
+	warpPrint("MMA8451Q accelerometer initialisation.\n");
 	deviceMMA8451QState.i2cAddress			= i2cAddress;
 	deviceMMA8451QState.operatingVoltageMillivolts	= operatingVoltageMillivolts;
 
+	uint8_t configErrors=0;
+       	configErrors += configureSensorMMA8451Q(
+		0x00, // F_SETUP : disable use of 32-bit FIFO mode.
+		0x05, // CTRL_REG1 : sets the output data rate to 800Hz, enables reduced noise maximum range mode (+/- 4g max signal measurement), sets the device to active mode by setting bit 0. 
+		0x03, // HP_FILTER_CUTOFF: This register sets the high-pass filter cutoff frequency for removal of the offset and slower changing acceleration data. The output of this filter is indicated by the data registers (0x01 to 0x06) when bit 4 (HPF_OUT) of register XYZ_DATA_CFG is set. Sets cutoff frequency to 2Hz at 800 Hz output data rate. 
+		0x12  // XYZ_DATA_CFG: Set output data high pass filter to remove DC offset, and full scale range to +/- 8g. 
+		);
+	warpPrint("MMA8451Q Config Errors: %d. \n", configErrors);
+	
+	//Initialise buffers used for LPF and acceleration to zero. These buffers have size BUFFER_SIZE which is equal to 32.
+	for(int i = 0; i <BUFFER_SIZE; i++){
+			AccelerationBuffer[i] = 0;
+			LPFBuffer[i] = 0;
+	}
 	return;
 }
 
@@ -125,9 +139,9 @@ writeSensorRegisterMMA8451Q(uint8_t deviceRegister, uint8_t payload)
 }
 
 WarpStatus
-configureSensorMMA8451Q(uint8_t payloadF_SETUP, uint8_t payloadCTRL_REG1)
+configureSensorMMA8451Q(uint8_t payloadF_SETUP, uint8_t payloadCTRL_REG1, uint8_t payloadHP_FILTER_CUTOFF, uint8_t payloadXYZ_DATA_CFG)
 {
-	WarpStatus	i2cWriteStatus1, i2cWriteStatus2;
+	WarpStatus	i2cWriteStatus1, i2cWriteStatus2, i2cWriteStatus3, i2cWriteStatus4, i2cWriteStatus5; // need 3 additional writestatus for the two extra addresses and the CTRL_REG1 in active and standby mode.
 
 
 	warpScaleSupplyVoltage(deviceMMA8451QState.operatingVoltageMillivolts);
@@ -137,10 +151,22 @@ configureSensorMMA8451Q(uint8_t payloadF_SETUP, uint8_t payloadCTRL_REG1)
 	);
 
 	i2cWriteStatus2 = writeSensorRegisterMMA8451Q(kWarpSensorConfigurationRegisterMMA8451QCTRL_REG1 /* register address CTRL_REG1 */,
-												  payloadCTRL_REG1 /* payload */
+												  payloadCTRL_REG1 & 0x0E /* payload, standby mode*/
+	);
+	
+	i2cWriteStatus3 = writeSensorRegisterMMA8451Q(kWarpSensorConfigurationRegisterMMA8451QCTRL_REG1 /* register address CTRL_REG1 */,
+												  payloadCTRL_REG1 & 0X0F/* payload, active mode*/                    
+	);
+	
+	i2cWriteStatus4 = writeSensorRegisterMMA8451Q(kWarpSensorConfigurationRegisterMMA8451QHP_FILTER_CUTOFF /* register address HP_FILTER_CUTOFF */,
+                                                                                                  payloadHP_FILTER_CUTOFF /* payload*/
+        );
+
+ 	i2cWriteStatus5 = writeSensorRegisterMMA8451Q(kWarpSensorConfigurationRegisterMMA8451QXYZ_DATA_CFG /* register address XYZDATA_CFG */,
+									    			  payloadXYZ_DATA_CFG /* payload*/                    
 	);
 
-	return (i2cWriteStatus1 | i2cWriteStatus2);
+	return (i2cWriteStatus1 | i2cWriteStatus2 | i2cWriteStatus3 | i2cWriteStatus4 | i2cWriteStatus5);
 }
 
 WarpStatus
@@ -303,7 +329,7 @@ printSensorDataMMA8451Q(bool hexModeFlag)
 		}
 	}
 }
-
+	
 uint8_t
 appendSensorDataMMA8451Q(uint8_t* buf)
 {

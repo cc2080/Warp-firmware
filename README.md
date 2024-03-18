@@ -1,3 +1,32 @@
+# 4B25 Coursework 4 - Using the MMA8451Q accelerometer for activity classification
+
+**Name: Charlie Cambridge**
+
+**College: Churchill**
+
+**CRSid: cc2080**
+
+This coursework piecce implements the MMA8451Q for a pedometer functionality in which the number of steps taken is measured over a 10 second interval. The data is then used classify whether the wearer is performing one of 4 actions from this, stationary, walking, jogging, or sprinting. The procedure for classifying the sensor data was as such. The functionality through which step count is determined is discussed in the second lecture of the 4B25 course.
+
+## Step 1: Low pass filter all 3 axes of acceleration measurements.
+can potentially use maximum axis selection or use magnitude as the parameter from which we use to determine step count. This filtering operation can be performed through multiplication with a set of coefficeints to low pass filter the signal.
+
+## Step 2: Select maximum activity axes for each 500ms window
+Combine to form piecewise function. Using the peak to peak value as the measurement. 
+
+## Step 3: External value making of the maximum activty axis data.
+Mark local maximum and local minimum points. and midpoints of two adjacent peaks. Use these maked values to determine step count by pulse counting.
+Can find these points using the simpleDiff() function.
+
+## Step 4: Apply algorithm to classify based on number of pulses
+Initial data set of measurements for applying algorithms.
+
+## Directory Structure
+src/boot/ksdk1.1.0/Classification.c - Contains functionality of classifcation algorithm.
+src/boot/ksdk1.1.0/devMMA8451Q.c - Communicating with accelerometer. The I2C address is set to 0x1D when calling initMMA8451Q
+src/boot/ksdk1.1.0/boot.c - Contains main function which is run during the program boot. The function classificationAlg() is repeatedly called to achieve the desired functionality over multiple cycles.
+src/boot/ksdk1.1.0/config.h - Configures KL03Z target within the Warp firmware. Two bytes are required for each acceleration axis so kWarpSizesI2cBUfferBytes must be set to at least 6.
+
 # Baseline firmware for the [Warp](https://github.com/physical-computation/Warp-hardware) family of hardware platforms
 This is the firmware for the [Warp hardware](https://github.com/physical-computation/Warp-hardware) and its publicly available and unpublished derivatives. This firmware also runs on the Freescale/NXP FRDM KL03 evaluation board which we use for teaching at the University of Cambridge. When running on platforms other than Warp, only the sensors available in the corresponding hardware platform are accessible.
 
