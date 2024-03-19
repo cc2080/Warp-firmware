@@ -62,6 +62,8 @@
 #include "gpio_pins.h"
 #include "SEGGER_RTT.h"
 
+#include "Classification.h"
+
 
 #define							kWarpConstantStringI2cFailure		"\rI2C failed, reg 0x%02x, code %d\n"
 #define							kWarpConstantStringErrorInvalidVoltage	"\rInvalid supply voltage [%d] mV!"
@@ -87,7 +89,6 @@
 // #include "devHDC1000.h"
 // #include "devRV8803C7.h"
 #include "devSSD1331.h"
-
 
 #if (WARP_BUILD_ENABLE_DEVADXL362)
 	volatile WarpSPIDeviceState			deviceADXL362State;
@@ -248,13 +249,18 @@ static void						lowPowerPinStates(void);
 #endif
 
 static void						dumpProcessorState(void);
-static void						repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t baseAddress,
-								bool autoIncrement, int chunkReadsPerAddress, bool chatty,
-								int spinDelay, int repetitionsPerAddress, uint16_t sssupplyMillivolts,
-								uint16_t adaptiveSssupplyMaxMillivolts, uint8_t referenceByte);
+//static void						repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t baseAddress,
+//								bool autoIncrement, int chunkReadsPerAddress, bool chatty,
+//								int spinDelay, int repetitionsPerAddress, uint16_t sssupplyMillivolts,
+//								uint16_t adaptiveSssupplyMaxMillivolts, uint8_t referenceByte);
 static int						char2int(int character);
-static void						activateAllLowPowerSensorModes(bool verbose);
-static void						powerupAllSensors(void);
+//static void						activateAllLowPowerSensorModes(bool verbose);
+//static void						powerupAllSensors(void);
+static void repeatRegisterReadForDeviceAndAddress(WarpSensorDevice warpSensorDevice, uint8_t baseAddress,
+                                                                bool autoIncrement, int chunkReadsPerAddress, bool chatty,
+                                                                int spinDelay, int repetitionsPerAddress, uint16_t sssupplyMillivolts,
+                                                                uint16_t adaptiveSssupplyMaxMillivolts, uint8_t referenceByte);
+
 static uint8_t						readHexByte(void);
 static int						read4digits(void);
 static void 					writeAllSensorsToFlash(int menuDelayBetweenEachRun, int loopForever);
@@ -1222,6 +1228,7 @@ printBootSplash(uint16_t gWarpCurrentSupplyVoltage, uint8_t menuRegisterAddress,
 	 */
 	warpPrint("\r\n\n\n\n[ *\t\t\t\tWarp (HW revision C) / Glaux (HW revision B)\t\t\t* ]\n");
 	warpPrint("\r[  \t\t\t\t      Cambridge / Physcomplab   \t\t\t\t  ]\n\n");
+	warpPrint("\r[  \t\t\t\t      4B25 Coursework - Charlie Cambridge 	\t\t\t    ] \n\n");
 	warpPrint("\r\tSupply=%dmV,\tDefault Target Read Register=0x%02x\n",
 			  gWarpCurrentSupplyVoltage, menuRegisterAddress);
 	warpPrint("\r\tI2C=%dkb/s,\tSPI=%dkb/s,\tUART=%db/s,\tI2C Pull-Up=%d\n\n",
@@ -1917,10 +1924,6 @@ main(void)
 
 	bool _originalWarpExtraQuietMode = gWarpExtraQuietMode;
 	gWarpExtraQuietMode = false;
-	
-	// Display initialisation
-
-    	devSSD1331init();	// Added by C. Cambridge for device initialisation, defined in devSSD1331linit()
     			
 	warpPrint("Press any key to show menu...\n");
 	gWarpExtraQuietMode = _originalWarpExtraQuietMode;
@@ -2026,6 +2029,27 @@ main(void)
 	}
 #endif
 
+	gWarpExtraQuietMode = false;
+	initMMA8451Q(	0x1D	/* i2cAddress */,	kWarpDefaultSupplyVoltageMillivoltsMMA8451Q	);
+	OSA_TimeDelay(5000);
+	// Time delay allows the buffer to fill before any step-rate readigns become valid.
+	warpPrint("\nCalling classificationAlg() now.\n");
+	for (int i = 0; i < 600; i++){
+	  timeBefore = OSA_TimeGetMsec();
+	  classificationAlg();
+	  timeAfter = OSA_TimeGetMsec();
+	  timeDifference = timeAfter - timeBefore;
+	  //warpPrint("EXECUTION TIME of classiferAlgorithm() = %d - %d = %dms.\n", timeAfter, timeBefore, timeDifference);
+	  if(timeDifference < SAMPLE_PERIOD){
+	    OSA_TimeDelay(SAMPLE_PERIOD - timeDifference);
+	  }
+          else{ // If this error occurs, try commenting out some warpPrint() statements.
+	    warpPrint("Error: timeDifference of %dms > %dms.\n", timeDifference, SAMPLE_PERIOD);
+	    break;
+	  }
+	}
+	warpPrint("\nFinished classificationAlg().\n");
+	
 	while (1)
 	{
 		/*
@@ -2033,7 +2057,6 @@ main(void)
 		 *	want to use menu to progressiveley change the machine state with various
 		 *	commands.
 		 */
-		gWarpExtraQuietMode = false;
 		printBootSplash(gWarpCurrentSupplyVoltage, menuRegisterAddress, &powerManagerCallbackStructure);
 
 		warpPrint("\rSelect:\n");
@@ -2540,7 +2563,7 @@ main(void)
 			case 'h':
 			{
 				warpPrint("\r\n\tNOTE: First power sensors and enable I2C\n\n");
-				activateAllLowPowerSensorModes(true /* verbose */);
+				//activateAllLowPowerSensorModes(true /* verbose */);
 
 				break;
 			}
@@ -2695,7 +2718,7 @@ main(void)
 			case 's':
 			{
 				warpPrint("\r\n\tNOTE: First power sensors and enable I2C\n\n");
-				powerupAllSensors();
+				// powerupAllSensors();
 				break;
 			}
 
@@ -3247,9 +3270,11 @@ writeAllSensorsToFlash(int menuDelayBetweenEachRun, int loopForever)
 
 #if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 	numberOfConfigErrors += configureSensorMMA8451Q(
-		0x00, /* Payload: Disable FIFO */
-		0x01  /* Normal read 8bit, 800Hz, normal, active mode */
-	);
+                0x00, // F_SETUP : disable use of 32-bit FIFO mode.
+                0x05, // CTRL_REG1 : sets the output data rate to 800Hz, enables reduced noise maximum range mode (+/- 4g max signal measurement), sets the device to active mode by setting bit 0.
+                0x03, // HP_FILTER_CUTOFF: This register sets the high-pass filter cutoff frequency for removal of the offset and slower changing acceleration data. The output of this filter is indicated by the data registers (0x01 to 0x06) when bit 4 (HPF_OUT) of register XYZ_DATA_CFG is set. Sets cutoff frequency to 2Hz at 800 Hz output data rate.
+                0x12  // XYZ_DATA_CFG: Set output data high pass filter to remove DC offset, and full scale range to +/- 8g.
+                );
 	sensorBitField = sensorBitField | kWarpFlashMMA8451QBitField;
 #endif
 
@@ -3501,9 +3526,11 @@ printAllSensors(bool printHeadersAndCalibration, bool hexModeFlag,
 
 #if (WARP_BUILD_ENABLE_DEVMMA8451Q)
 	numberOfConfigErrors += configureSensorMMA8451Q(
-		0x00, /* Payload: Disable FIFO */
-		0x01  /* Normal read 8bit, 800Hz, normal, active mode */
-	);
+                0x00, // F_SETUP : disable use of 32-bit FIFO mode.
+                0x05, // CTRL_REG1 : sets the output data rate to 800Hz, enables reduced noise maximum range mode (+/- 4g max signal measurement), sets the device to active mode by setting bit 0.
+                0x03, // HP_FILTER_CUTOFF: This register sets the high-pass filter cutoff frequency for removal of the offset and slower changing acceleration data. The output of this filter is indicated by the data registers (0x01 to 0x06) when bit 4 (HPF_OUT) of register XYZ_DATA_CFG is set. Sets cutoff frequency to 2Hz at 800 Hz output data rate.
+                0x12  // XYZ_DATA_CFG: Set output data high pass filter to remove DC offset, and full scale range to +/- 8g.
+                );
 #endif
 
 #if (WARP_BUILD_ENABLE_DEVMAG3110)
@@ -4461,33 +4488,33 @@ writeBytesToSpi(uint8_t *  payloadBytes, int payloadLength)
 	return (status == kStatus_SPI_Success ? kWarpStatusOK : kWarpStatusCommsError);
 }
 
-void
-powerupAllSensors(void)
-{
+//void
+//powerupAllSensors(void)
+//{
 /*
  *	BMX055mag
  *
  *	Write '1' to power control bit of register 0x4B. See page 134.
  */
-#if (WARP_BUILD_ENABLE_DEVBMX055)
-		WarpStatus	status = writeByteToI2cDeviceRegister(	deviceBMX055magState.i2cAddress		/*	i2cAddress		*/,
-							true					/*	sendCommandByte		*/,
-							0x4B					/*	commandByte		*/,
-							true					/*	sendPayloadByte		*/,
-							(1 << 0)				/*	payloadByte		*/);
-	if (status != kWarpStatusOK)
-	{
-			warpPrint("\r\tPowerup command failed, code=%d, for BMX055mag @ 0x%02x.\n", status, deviceBMX055magState.i2cAddress);
-	}
-#else
-	warpPrint("\r\tPowerup command failed. BMX055 disabled \n");
-#endif
-}
+//#if (WARP_BUILD_ENABLE_DEVBMX055)
+//		WarpStatus	status = writeByteToI2cDeviceRegister(	deviceBMX055magState.i2cAddress		/*	i2cAddress		*/,
+//							true					/*	sendCommandByte		*/,
+//							0x4B					/*	commandByte		*/,
+//							true					/*	sendPayloadByte		*/,
+//							(1 << 0)				/*	payloadByte		*/);
+//	if (status != kWarpStatusOK)
+//	{
+//			warpPrint("\r\tPowerup command failed, code=%d, for BMX055mag @ 0x%02x.\n", status, deviceBMX055magState.i2cAddress);
+//	}
+//#else
+//	warpPrint("\r\tPowerup command failed. BMX055 disabled \n");
+//#endif
+//}
 
-void
-activateAllLowPowerSensorModes(bool verbose)
-{
-	WarpStatus	status;
+//void
+//activateAllLowPowerSensorModes(bool verbose)
+//{
+//	WarpStatus	status;
 /*
  *	ADXL362:	See Power Control Register (Address: 0x2D, Reset: 0x00).
  *
@@ -4497,51 +4524,51 @@ activateAllLowPowerSensorModes(bool verbose)
 /*
  *	IS25XP:	Put in powerdown momde
  */
-#if (WARP_BUILD_ENABLE_DEVIS25xP)
+//#if (WARP_BUILD_ENABLE_DEVIS25xP)
 	/*
 	 *	Put the Flash in deep power-down
 	 */
 		//TODO: move 0xB9 into a named constant
 		//spiTransactionIS25xP({0xB9 /* op0 */,  0x00 /* op1 */,  0x00 /* op2 */, 0x00 /* op3 */, 0x00 /* op4 */, 0x00 /* op5 */, 0x00 /* op6 */}, 1 /* opCount */);
-#endif
+//#endif
 
 /*
 	 *	BMX055accel: At POR, device is in Normal mode. Move it to Deep Suspend mode.
  *
 	 *	Write '1' to deep suspend bit of register 0x11, and write '0' to suspend bit of register 0x11. See page 23.
  */
-#if WARP_BUILD_ENABLE_DEVBMX055
-		status = writeByteToI2cDeviceRegister(	deviceBMX055accelState.i2cAddress	/*	i2cAddress		*/,
-							true					/*	sendCommandByte		*/,
-							0x11					/*	commandByte		*/,
-							true					/*	sendPayloadByte		*/,
-							(1 << 5)				/*	payloadByte		*/);
-	if ((status != kWarpStatusOK) && verbose)
-	{
-			warpPrint("\r\tPowerdown command failed, code=%d, for BMX055accel @ 0x%02x.\n", status, deviceBMX055accelState.i2cAddress);
-	}
-#else
-	warpPrint("\r\tPowerdown command abandoned. BMX055 disabled\n");
-#endif
+//#if WARP_BUILD_ENABLE_DEVBMX055
+//		status = writeByteToI2cDeviceRegister(	deviceBMX055accelState.i2cAddress	/*	i2cAddress		*/,
+//							true					/*	sendCommandByte		*/,
+//							0x11					/*	commandByte		*/,
+//							true					/*	sendPayloadByte		*/,
+//							(1 << 5)				/*	payloadByte		*/);
+//	if ((status != kWarpStatusOK) && verbose)
+//	{
+//			warpPrint("\r\tPowerdown command failed, code=%d, for BMX055accel @ 0x%02x.\n", status, deviceBMX055accelState.i2cAddress);
+//	}
+//#else
+//	warpPrint("\r\tPowerdown command abandoned. BMX055 disabled\n");
+//#endif
 
 /*
 	 *	BMX055gyro: At POR, device is in Normal mode. Move it to Deep Suspend mode.
  *
  *	Write '1' to deep suspend bit of register 0x11. See page 81.
  */
-#if (WARP_BUILD_ENABLE_DEVBMX055)
-		status = writeByteToI2cDeviceRegister(	deviceBMX055gyroState.i2cAddress	/*	i2cAddress		*/,
-							true					/*	sendCommandByte		*/,
-							0x11					/*	commandByte		*/,
-							true					/*	sendPayloadByte		*/,
-							(1 << 5)				/*	payloadByte		*/);
-	if ((status != kWarpStatusOK) && verbose)
-	{
-			warpPrint("\r\tPowerdown command failed, code=%d, for BMX055gyro @ 0x%02x.\n", status, deviceBMX055gyroState.i2cAddress);
-	}
-#else
-	warpPrint("\r\tPowerdown command abandoned. BMX055 disabled\n");
-#endif
+//#if (WARP_BUILD_ENABLE_DEVBMX055)
+//		status = writeByteToI2cDeviceRegister(	deviceBMX055gyroState.i2cAddress	/*	i2cAddress		*/,
+//							true					/*	sendCommandByte		*/,
+//							0x11					/*	commandByte		*/,
+//							true					/*	sendPayloadByte		*/,
+//							(1 << 5)				/*	payloadByte		*/);
+//	if ((status != kWarpStatusOK) && verbose)
+//	{
+//			warpPrint("\r\tPowerdown command failed, code=%d, for BMX055gyro @ 0x%02x.\n", status, deviceBMX055gyroState.i2cAddress);
+//	}
+//#else
+//	warpPrint("\r\tPowerdown command abandoned. BMX055 disabled\n");
+//#endif
 
 
 
@@ -4594,19 +4621,19 @@ activateAllLowPowerSensorModes(bool verbose)
  *
  *	POR state seems to be powered down.
  */
-#if (WARP_BUILD_ENABLE_DEVL3GD20H)
-		status = writeByteToI2cDeviceRegister(	deviceL3GD20HState.i2cAddress	/*	i2cAddress		*/,
-							true				/*	sendCommandByte		*/,
-							0x20				/*	commandByte		*/,
-							true				/*	sendPayloadByte		*/,
-							0x00				/*	payloadByte		*/);
-		if ((status != kWarpStatusOK) && verbose)
-	{
-			warpPrint("\r\tPowerdown command failed, code=%d, for L3GD20H @ 0x%02x.\n", status, deviceL3GD20HState.i2cAddress);
-	}
-#else
-	warpPrint("\r\tPowerdown command abandoned. L3GD20H disabled\n");
-#endif
+//#if (WARP_BUILD_ENABLE_DEVL3GD20H)
+//		status = writeByteToI2cDeviceRegister(	deviceL3GD20HState.i2cAddress	/*	i2cAddress		*/,
+//							true				/*	sendCommandByte		*/,
+//							0x20				/*	commandByte		*/,
+//							true				/*	sendPayloadByte		*/,
+//							0x00				/*	payloadByte		*/);
+//		if ((status != kWarpStatusOK) && verbose)
+//	{
+//			warpPrint("\r\tPowerdown command failed, code=%d, for L3GD20H @ 0x%02x.\n", status, deviceL3GD20HState.i2cAddress);
+//	}
+//#else
+//	warpPrint("\r\tPowerdown command abandoned. L3GD20H disabled\n");
+//#endif
 
 
 
@@ -4621,29 +4648,29 @@ activateAllLowPowerSensorModes(bool verbose)
  *
  *	Make it go to sleep state. See page 17, 18, and 19.
  */
-#if (WARP_BUILD_ENABLE_DEVTCS34725)
-		status = writeByteToI2cDeviceRegister(	deviceTCS34725State.i2cAddress	/*	i2cAddress		*/,
-							true				/*	sendCommandByte		*/,
-							0x00				/*	commandByte		*/,
-							true				/*	sendPayloadByte		*/,
-							0x00				/*	payloadByte		*/);
-	if ((status != kWarpStatusOK) && verbose)
-	{
-			warpPrint("\r\tPowerdown command failed, code=%d, for TCS34725 @ 0x%02x.\n", status, deviceTCS34725State.i2cAddress);
-	}
-#else
-	warpPrint("\r\tPowerdown command abandoned. TCS34725 disabled\n");
-#endif
+//#if (WARP_BUILD_ENABLE_DEVTCS34725)
+//		status = writeByteToI2cDeviceRegister(	deviceTCS34725State.i2cAddress	/*	i2cAddress		*/,
+//							true				/*	sendCommandByte		*/,
+//							0x00				/*	commandByte		*/,
+//							true				/*	sendPayloadByte		*/,
+//							0x00				/*	payloadByte		*/);
+//	if ((status != kWarpStatusOK) && verbose)
+//	{
+//			warpPrint("\r\tPowerdown command failed, code=%d, for TCS34725 @ 0x%02x.\n", status, deviceTCS34725State.i2cAddress);
+//	}
+//#else
+//	warpPrint("\r\tPowerdown command abandoned. TCS34725 disabled\n");
+//#endif
 
 /*
 	 *	SI4705: Send a POWER_DOWN command (byte 0x17). See AN332 page 124 and page 132.
  *
  *	For now, simply hold its reset line low.
  */
-#if (WARP_BUILD_ENABLE_DEVSI4705)
-	GPIO_DRV_ClearPinOutput(kWarpPinSI4705_nRST);
-#endif
-}
+//#if (WARP_BUILD_ENABLE_DEVSI4705)
+//	GPIO_DRV_ClearPinOutput(kWarpPinSI4705_nRST);
+//#endif
+//}
 
 #if (WARP_BUILD_ENABLE_FLASH)
 WarpStatus

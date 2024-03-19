@@ -177,6 +177,8 @@ typedef enum
 	kWarpSensorOutputRegisterMMA8451QOUT_Y_LSB			= 0x04,
 	kWarpSensorOutputRegisterMMA8451QOUT_Z_MSB			= 0x05,
 	kWarpSensorOutputRegisterMMA8451QOUT_Z_LSB			= 0x06,
+	kWarpSensorConfigurationRegisterMMA8451QXYZ_DATA_CFG            = 0x0E,
+	kWarpSensorConfigurationRegisterMMA8451QHP_FILTER_CUTOFF	= 0x0F,
 
 	kWarpSensorOutputRegisterMAG3110OUT_X_MSB			= 0x01,
 	kWarpSensorOutputRegisterMAG3110OUT_X_LSB			= 0x02,

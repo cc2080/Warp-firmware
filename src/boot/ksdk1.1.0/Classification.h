@@ -12,6 +12,9 @@ typedef enum
 
 WarpStatus UpdateAccelerations();
 
+#define BUFFER_SIZE 39
+#define SAMPLE_PERIOD 100
+
 void ClassificationAlg();
 void BufferShift();
 void StepRate();
@@ -21,14 +24,19 @@ void Diffdata();
 void Activity();
 
 // Concatenated acceleratiun MSB and LSB data
-int16_t XCombined - 0;
-int16_t YCombined - 0;
-int16_t ZCombined - 0;
+int16_t XCombined = 0;
+int16_t YCombined = 0;
+int16_t ZCombined = 0;
 
 // Acceleration and LPF buffer intialisation
-uint32_t AccelerationBuffer[BUFFER_SIZE] ={0}
-uint32_t LPFBuffer[BUFFER_SIZE] ={0}
+uint32_t AccelerationBuffer[BUFFER_SIZE] = {0};
+uint32_t LPFBuffer[BUFFER_SIZE] = {0};
+uint32_t AccelSum = 0;
 
 uint16_t maxminpoints = 0;
 
 int32_t realAcceleration(int16_t accelg);
+
+uint16_t timeBefore = 0;
+uint16_t timeAfter = 0;
+uint16_t timeDifference = 0;
