@@ -2034,7 +2034,7 @@ main(void)
 	OSA_TimeDelay(5000);
 	// Time delay allows the buffer to fill before any step-rate readigns become valid.
 	warpPrint("\nCalling classificationAlg() now.\n");
-	for (int i = 0; i < 600; i++){
+	for (int i = 0; i < 300; i++){
 	  timeBefore = OSA_TimeGetMsec();
 	  classificationAlg();
 	  timeAfter = OSA_TimeGetMsec();

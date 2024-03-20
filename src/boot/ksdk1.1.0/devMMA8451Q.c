@@ -77,9 +77,12 @@ initMMA8451Q(const uint8_t i2cAddress, uint16_t operatingVoltageMillivolts)
 	warpPrint("MMA8451Q Config Errors: %d. \n", configErrors);
 	
 	//Initialise buffers used for LPF and acceleration to zero. These buffers have size BUFFER_SIZE which is equal to 32.
-	for(int i = 0; i <BUFFER_SIZE; i++){
-			AccelerationBuffer[i] = 0;
-			LPFBuffer[i] = 0;
+	for(int i = 0; i<BUFFER_SIZE; i++){
+			AccelerationSquareBuffer[i] = 0;
+			LPFA2Buffer[i] = 0;
+		//if(i<BUFFER_SIZE-2){
+		//	ddAccelerationSquareBuffer[i] = 0;
+		//}
 	}
 	return;
 }

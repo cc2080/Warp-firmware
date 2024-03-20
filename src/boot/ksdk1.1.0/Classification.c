@@ -22,14 +22,15 @@
 #include "Classification.h"
 
 void classificationAlg(){
-	uint16_t XLSB, YLSB, ZLSB;
 	uint16_t XMSB, YMSB, ZMSB;
+  	uint16_t XLSB, YLSB, ZLSB;
 	int32_t XAccel, YAccel, ZAccel;
+	uint32_t accelerationSquare;
 	WarpStatus i2cReadStatus;
-	
+		
     	i2cReadStatus = readSensorRegisterMMA8451Q(kWarpSensorOutputRegisterMMA8451QOUT_X_MSB, 6 /* numberOfBytes */);
 	
-	warpPrint("\nReading acceleration measurements from MMA8451Q registers %d to %d.\n", kWarpSensorOutputRegisterMMA8451QOUT_X_MSB, kWarpSensorOutputRegisterMMA8451QOUT_X_MSB + 5);
+	// warpPrint("\nReading acceleration measurements from MMA8451Q registers %d to %d.\n", kWarpSensorOutputRegisterMMA8451QOUT_X_MSB, kWarpSensorOutputRegisterMMA8451QOUT_X_MSB + 5);
 
 	if (i2cReadStatus != kWarpStatusOK){
     	warpPrint("\nFailed to read acceleration measurements.\n");
@@ -49,32 +50,35 @@ void classificationAlg(){
   	//Sign extend 14-bit data
 	YCombined = (YCombined ^ (1 << 13)) - (1 << 13);
 	YAccel = realAcceleration(YCombined);
-
+		
 	ZMSB = deviceMMA8451QState.i2cBuffer[4];
   	ZLSB = deviceMMA8451QState.i2cBuffer[5];
   	ZCombined = ((ZMSB & 0xFF) << 6) | (ZLSB >> 2);
 	//Sign extebd to 14-bit data
   	ZCombined = (ZCombined ^ (1 << 13)) - (1 << 13);
 	ZAccel = realAcceleration(ZCombined);
-	
-	AccelSum = XAccel + YAccel + ZAccel;
+
+	accelerationSquare = sqrt((uint32_t)(XAccel*XAccel) + (uint32_t)(YAccel*YAccel) + (uint32_t)(ZAccel*ZAccel));
 
 	BufferShift();
+
+	AccelerationSquareBuffer[BUFFER_SIZE -1] = accelerationSquare;
 	
-	AccelerationBuffer[BUFFER_SIZE -1] = AccelSum;
-
-	// X-acc, Y-acc, Z-acc, AccSum
-	warpPrint("%d, %d, %d, %d", XAccel, YAccel, ZAccel, AccelerationBuffer[BUFFER_SIZE - 1]);
-
 	//Implement LPF
+	LPFdata();
 	
-	//Implement Differentiation
+	//Then need to run preceding steps of the algorithm repetitively until the BUFFER is filled so that inflection points can be determined with greater confidence for determining step count.
+	
+	count++;
 
-	//Calculate Step-rate
-	
-	//Identify Activity
-	
-	
+	if(count % BUFFER_SIZE != 0){
+		warpPrint("\n %d, %d, %d, %d, %d", XAccel, YAccel, ZAccel, accelerationSquare, LPFA2Buffer[BUFFER_SIZE-1]);
+	}
+	else{
+		calculateSecondDerivative(LPFA2Buffer, BUFFER_SIZE, ddAccelerationSquareBuffer);
+		InflectionPoints = findInflectionPoints(ddAccelerationSquareBuffer, BUFFER_SIZE-2);
+	warpPrint("\n %d, %d, %d, %d, %d", XAccel, YAccel, ZAccel, accelerationSquare, LPFA2Buffer[BUFFER_SIZE-1], ddAccelerationSquareBuffer[BUFFER_SIZE-3], ddAccelerationSquareBuffer[BUFFER_SIZE - 4], InflectionPoints);	
+	}
 }
 
 // Function for converting acceleration from multiples of 1/1024 g in 8g mode set, to mms-2
@@ -84,137 +88,106 @@ return accel;
 }
 
 //Function for shifting the acceleration and lpf buffer data left for new data entry.
-void BufferShift(){
+void BufferShift(int32_t* Buffer){
 	for (int i=1; i < BUFFER_SIZE; i++){
-	AccelerationBuffer[i-1]=AccelerationBuffer[i];
-	LPFBuffer[i-1] = LPFBuffer[i];
+ 	AccelerationSquareBuffer[i-1] = AccelerationSquareBuffer[i];
+        LPFA2Buffer[i-1] = LPFA2Buffer[i];
+        }
+        AccelerationSquareBuffer[BUFFER_SIZE -1] = 0;
+        LPFA2Buffer[BUFFER_SIZE - 1] = 0;
+        }	
+
+void LPFdata(){
+	for (int i = 0; i < BUFFER_SIZE; i++){
+	LPFA2Buffer[BUFFER_SIZE-1] += AccelerationSquareBuffer[i];
 	}
-	
-      	AccelerationBuffer[BUFFER_SIZE - 1] = 0;
-  	LPFBuffer[BUFFER_SIZE - 1] = 0;
+	//Simple moving average filter
+	LPFA2Buffer[BUFFER_SIZE-1] = LPFA2Buffer[BUFFER_SIZE-1]/BUFFER_SIZE;
 }
 
-void StepRate(){
+uint32_t sqrt(uint32_t num) {
+    uint32_t low = 0, high = num, mid;
+    while (low <= high) {
+        mid = low + (high - low) / 2;
+        uint64_t square = (uint64_t)mid * mid;
 
+        if (square == num) {
+            return mid;
+        } else if (square < num) {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    return high; // Return the floor value of the square root
 }
 
-void MaximalAxis(){
 
+// Function to calculate the second derivative
+int32_t calculateSecondDerivative(uint32_t data[], int size, int32_t secondDerivative[]) {
+    for (int i = 1; i < size - 1; i++) {
+        secondDerivative[i - 1] = data[i - 1] - 2 * data[i] + data[i + 1];
+	uint32_t secondDMag = sqrt((uint32_t)(secondDerivative[i - 1]*secondDerivative[i - 1]));
+	if(secondDMag < 10){
+	secondDerivative[i - 1] = 0; //attempt thresholding
+	}
+	//should be divide by sample period squared, but only interested in zerocrossings.
+	//Note second derivative is two data points smaller than data as expected.
+    }
+    return 0;
 }
 
-//void LPFdata(){
-//	int i;
-//	for(i=0; i<BUFFER_SIZE; i++){
-//	LPFBuffer[BUFFER_SIZE - 1] += (AccelerationBuffer[i] * (uint32_t)LPFCoeffs[i]);
-//	}
-//	warpPrint("AccelerationBuffer[%d] = %d, LPFBuffer[%d] = %d.\n", BUFFER_SIZE - 1, AccelerationBuffer[BUFFER_SIZE - 1], BUFFER_SIZE - 1, LPFBuffer[BUFFER_SIZE - 1]);
-//}
 
-//Need to search for points of inflection for pedometer algorithm, about these points the curvature changes.
-//void Diffdata(){
-//	maxminpoints = 0;
-//
-//	if((LastEntry > PenultimateEntry) && (lastElement > LPFBuffer[0]) && (minimumSamples > 10)){ // A concave inflection point (maximum) has been reached.
-//    numberOfInflectionPoints = numberOfInflectionPoints + 1;
- //   minimumSamples = 0;
-    // warpPrint("simpleDiff(): %d > %d and %d > %d - MAXIMUM detected in LPFBuffer[-1].\n", lastElement, secondToLastElement, lastElement, LPFBuffer[0]);
-//    if(firstExcessTest){ // Runs if this is the first inflection point of the experiment.
- //     firstExcessTest = 0;
-  //    firstExcessTime = (numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE);
-      // warpPrint("simpleDiff(): firstExcessTime: %d.\n", firstExcessTime);
-//    }
-//    finalInflectionTime = (numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE);
-    // warpPrint("simpleDiff(): finalInflectionTime: %d.\n", finalInflectionTime);
-//  }
- // else if((lastElement < secondToLastElement) && (lastElement < LPFBuffer[0]) && (minimumSamples > 10)){ // A convex inflection point (minimum) has been reached.
-//    numberOfInflectionPoints = numberOfInflectionPoints + 1;
-//   minimumSamples = 0;
-//    warpPrint("simpleDiff(): %d < %d and %d < %d - MINIMUM detected in LPFBuffer[-1].\n", lastElement, secondToLastElement, lastElement, LPFBuffer[0]);
-//    if(firstExcessTest){ // Runs if this is the first inflection point of the experiment.
-//      firstExcessTest = 0;
-//      firstExcessTime = (numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE);
-      // warpPrint("simpleDiff(): firstExcessTime: %d.\n", firstExcessTime);
-//    }
-//    finalInflectionTime = (numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE);
-    // warpPrint("simpleDiff(): finalInflectionTime: %d.\n", finalInflectionTime);
-//  }
-//  minimumSamples++;
+// Function to find the number of inflection points
+int findInflectionPoints(int32_t secondDerivative[], int size) {
+    int count = 0;
+    for (int i = 1; i < size - 1; i++) {
+        if (secondDerivative[i - 1] * secondDerivative[i] < -100) {
+            count++; //thresholding based on value of second derivative
+        }
+    }
+    return count;
+}
 
-  // Secondly, check if the first element of the current LPFBuffer is an inflection point.
-//  if((LPFBuffer[0] > lastElement) && (LPFBuffer[0] > LPFBuffer[1])  && (minimumSamples > 10)){ // A concave inflection point (maximum) has been reached.
-//    numberOfInflectionPoints = numberOfInflectionPoints + 1;
-//    minimumSamples = 0;
-//    warpPrint("simpleDiff(): %d > %d and %d > %d - MAXIMUM detected in LPFBuffer[0].\n", LPFBuffer[0], lastElement, LPFBuffer[0], LPFBuffer[1]);
-//    if(firstExcessTest){ // Runs if this is the first inflection point of the experiment.
-//      firstExcessTest = 0;
-//      firstExcessTime = ((numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE)) + SAMPLE_PERIOD;
-      // warpPrint("simpleDiff(): firstExcessTime: %d.\n", firstExcessTime);
-//    }
-//    finalInflectionTime = ((numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE)) + SAMPLE_PERIOD;
-    // warpPrint("simpleDiff(): finalInflectionTime: %d.\n", finalInflectionTime);
-// }
-//  else if((LPFBuffer[0] < lastElement) && (LPFBuffer[0] < LPFBuffer[1])  && (minimumSamples > 10)){ // A convex inflection point (minimum) has been reached.
-//    numberOfInflectionPoints = numberOfInflectionPoints + 1;
-//    minimumSamples = 0;
-//    warpPrint("simpleDiff(): %d < %d and %d < %d - MINIMUM detected in LPFBuffer[0].\n", LPFBuffer[0], lastElement, LPFBuffer[0], LPFBuffer[1]);
-//    if(firstExcessTest){ // Runs if this is the first inflection point of the experiment.
-//      firstExcessTest = 0;
-//      firstExcessTime = ((numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE)) + SAMPLE_PERIOD;
-//      warpPrint("simpleDiff(): firstExcessTime: %d.\n", firstExcessTime);
-//    }
-//    finalInflectionTime = ((numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE)) + SAMPLE_PERIOD;
-    // warpPrint("simpleDiff(): finalInflectionTime: %d.\n", finalInflectionTime);
-//  }
-//  minimumSamples++;
-
-  // Thirdly, check the middle 37 points of the buffer in a for loop.
-//  for(int i = 1; i < BUFFER_SIZE - 1; i++){
-//    if((LPFBuffer[i] > LPFBuffer[i-1]) && (LPFBuffer[i] > LPFBuffer[i+1])  && (minimumSamples > 10)){ // A concave inflection point (maximum) has been reached.
-//      numberOfInflectionPoints = numberOfInflectionPoints + 1;
-//      minimumSamples = 0;
-//      warpPrint("simpleDiff(): %d > %d and %d > %d - MAXIMUM detected in LPFBuffer[%d].\n", LPFBuffer[i], LPFBuffer[i-1], LPFBuffer[i], LPFBuffer[i+1], i);
-//      if(firstExcessTest){ // Runs if this is the first inflection point of the experiment.
-//        firstExcessTest = 0;
-//	firstExcessTime = ((numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE)) + (SAMPLE_PERIOD * (i + 1));
-	// warpPrint("simpleDiff(): firstExcessTime: %d.\n", firstExcessTime);
-//      }
-//      finalInflectionTime = ((numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE)) + (SAMPLE_PERIOD * (i + 1));
-      // warpPrint("simpleDiff(): finalInflectionTime: %d.\n", finalInflectionTime);
-//    }
-//    else if((LPFBuffer[i] < LPFBuffer[i-1]) && (LPFBuffer[i] < LPFBuffer[i+1]) && (minimumSamples > 10)){ // A convex inflection point (minimum) has been reached.
-//      numberOfInflectionPoints = numberOfInflectionPoints + 1;
-//      minimumSamples = 0;
-//      warpPrint("simpleDiff(): %d < %d and %d < %d - MINIMUM detected in LPFBuffer[%d].\n", LPFBuffer[i], LPFBuffer[i-1], LPFBuffer[i], LPFBuffer[i+1], i);
-//      if(firstExcessTest){ // Runs if this is the first inflection point of the experiment.
-//        firstExcessTest = 0;
-//	firstExcessTime = ((numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE)) + (SAMPLE_PERIOD * (i + 1));
-	// warpPrint("simpleDiff(): firstExcessTime: %d.\n", firstExcessTime);
-//      }
-//      finalInflectionTime = ((numberOfCycles - 1) * (SAMPLE_PERIOD * BUFFER_SIZE)) + (SAMPLE_PERIOD * (i + 1));
-      // warpPrint("simpleDiff(): finalInflectionTime: %d.\n", finalInflectionTime);
-//    }
-//    minimumSamples++;
-//  }
-  // Save the last and second-to-last elements in the range - this is required to avoid missing inflection points which occur in the 0th and 38th elements of the buffer.
-//  lastElement = LPFBuffer[BUFFER_SIZE - 1];
-//  secondToLastElement = LPFBuffer[BUFFER_SIZE - 2];
-//}
-
-//void Activity(){
-//	if(StepRate > SprintingRate){
-//	ActivityDetect = SprintingLabel;
-//	}
+/*void StepRateIdentify(){
 	
-//	else if(StepRate > JoggingRate{
-//	ActivityDetect = JoggingLabel;
-//	}
+	TotalSteps += InflectionPoints/2;
 	
-//	else if(StepRate > WalkingRate{
-//	ActivityDetect = WalkingLabel;
-//	}
+	StepRate = TotalSteps * 100 ; //10 second interval of data collection (in mSteps/s for comparisons as integer)
 	
-//	else{
-//	ActivityDetect = StationaryLabel;
-//	}
-
-//}
+	warpPrint("Step-rate is %d\n", StepRate);
+	
+	//A 6 foot male step length is around 0.75m
+	//Stationary below 0.2ms-1 (step rate 0.267 steps/s) 
+	//Walking Speed is upto 2 ms-1 (step rate 2.667 steps/s)
+	//Jogging Speed is upto 5 ms-1 (step rate 6.667 steps/s)
+	//Sprinting is above 5 ms-1 (with absolute certainity at around 7ms-1/9.333 steps/s even for a highly trained sprinter).
+	
+	if(StepRate < StationaryRate){
+        ActivityDetect = StationaryLabel;
+	Uncertainty = 0;
+        warpPrint("Activity = Stationary, \t\t Confidence Level = %d Percent.\n", 100 - Uncertainty);
+	}
+        else if(WalkingRate > StepRate > StationaryRate){
+        ActivityDetect = WalkingLabel;
+	Uncertainty = 100 * (WalkingRate - StepRate) / (WalkingRate - StationaryRate);
+	warpPrint("Activity = Walking, \t\t Confidence Level = %d Percent.\n", 100 - Uncertainty);
+        }
+        else if(JoggingRate > StepRate > WalkingRate){
+        ActivityDetect = JoggingLabel;
+	Uncertainty = 100 * (JoggingRate - StepRate) / (JoggingRate - WalkingRate);
+	warpPrint("Activity = Jogging, \t\t Confidence Level = %d Percent.\n", 100 - Uncertainty);
+        }
+	else{
+	ActivityDetect = SprintingLabel;
+	if(StepRate > ThresholdSprint){
+		Uncertainity = 0;
+		warpPrint("Activity = Sprinting, \t\t Confidence Level = %d Percent.\n", 100 - Uncertainty);
+	}
+	else{
+		Uncertainty = 100 * (ThresholdSprint - StepRate) / (ThresholdSprint - SprintingRate);
+                warpPrint("Activity = Sprinting, \t\t Confidence Level = %d Percent.\n", 100 - Uncertainty);
+	}
+	}
+		
+}*/
