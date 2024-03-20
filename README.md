@@ -9,16 +9,15 @@
 This coursework piecce implements the MMA8451Q for a pedometer functionality in which the number of steps taken is measured over a 10 second interval. The data is then used classify whether the wearer is performing one of 4 actions from this, stationary, walking, jogging, or sprinting. The procedure for classifying the sensor data was as such. The functionality through which step count is determined is discussed in the second lecture of the 4B25 course.
 
 ## Step 1: Low pass filter all 3 axes of acceleration measurements.
-can potentially use maximum axis selection or use magnitude as the parameter from which we use to determine step count. This filtering operation can be performed through multiplication with a set of coefficeints to low pass filter the signal.
+Can potentially use maximum axis selection or use magnitude as the parameter from which we use to determine step count. This filtering operation can be performed through multiplication with a set of coefficeints to low pass filter the signal. For simplicity a moving average filter was used.
 
 ## Step 2: Select maximum activity axes for each 500ms window
-Combine to form piecewise function. Using the peak to peak value as the measurement. 
+Combine to form piecewise function. Using the peak to peak value as the measurement. Changed to use acceleration magnitude due to issues with stack heap collisions.
 
 ## Step 3: External value making of the maximum activty axis data.
-Mark local maximum and local minimum points. and midpoints of two adjacent peaks. Use these maked values to determine step count by pulse counting.
-Can find these points using the simpleDiff() function.
+Mark local maximum and local minimum points. and midpoints of two adjacent peaks. Use these maked values to determine step count by determining the number of points of inflection.
 
-## Step 4: Apply algorithm to classify based on number of pulses
+## Step 4: Apply algorithm to classify based on number of steps within 10s window.
 Initial data set of measurements for applying algorithms.
 
 ## Directory Structure
