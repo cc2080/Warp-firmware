@@ -8,6 +8,8 @@
 
 This coursework piecce implements the MMA8451Q for a pedometer functionality in which the number of steps taken is measured over a 10 second interval. The data is then used classify whether the wearer is performing one of 4 actions from this, stationary, walking, jogging, or sprinting. The procedure for classifying the sensor data was as such. The functionality through which step count is determined is discussed in the second lecture of the 4B25 course.
 
+Unfortunately, I have not been able to finish the coursework 4 task.
+
 ## Step 1: Low pass filter all 3 axes of acceleration measurements.
 Can potentially use maximum axis selection or use magnitude as the parameter from which we use to determine step count. This filtering operation can be performed through multiplication with a set of coefficeints to low pass filter the signal. For simplicity a moving average filter was used.
 
